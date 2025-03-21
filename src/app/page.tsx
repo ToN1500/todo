@@ -6,6 +6,8 @@ export default function Home() {
   const api_url = "https://66c3f9a2b026f3cc6ceda0db.mockapi.io/todo";
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodo, setNewTodo] = useState<string>("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState<string>("");
 
   const fetchTodos = async () => {
     const response = await fetch(api_url);
@@ -37,51 +39,136 @@ export default function Home() {
     setTodos(todos.filter((todo) => todo.id !== id));
   };
 
+  const toggleTodo = async (id: string, completed: boolean) => {
+    await fetch(`${api_url}/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ completed: !completed }),
+    });
+    setTodos(
+      todos.map((todo) =>
+        todo.id === id ? { ...todo, completed: !completed } : todo
+      )
+    );
+  };
+
+  const startEdit = (todo: Todo) => {
+    setEditingId(todo.id);
+    setEditText(todo.title);
+  };
+
+  const saveEdit = async (id: string) => {
+    if (editText.trim() === "") return;
+
+    await fetch(`${api_url}/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ title: editText }),
+    });
+
+    setTodos(
+      todos.map((todo) =>
+        todo.id === id ? { ...todo, title: editText } : todo
+      )
+    );
+    setEditingId(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+  };
+
   useEffect(() => {
     fetchTodos();
   }, []);
 
   return (
-    <main>
-      <h1 className="text-3xl font-semibold text-center mt-8">Todo List</h1>
+    <main className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-2xl mx-auto px-4">
+        <h1 className="text-4xl font-bold text-center text-gray-800 mb-8">Todo List</h1>
 
-      <form
-        className="flex items-center justify-center mt-8"
-        onSubmit={addTodo}
-      >
-        <input
-          type="text"
-          className="w-64 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-          placeholder="What needs to be done?"
-          value={newTodo}
-          onChange={(e) => setNewTodo(e.target.value)}
-        />
-        <button
-          type="submit"
-          className="ml-4 px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+        <form
+          className="flex items-center justify-center gap-4 mb-8"
+          onSubmit={addTodo}
         >
-          Add
-        </button>
-      </form>
-      <ul className="mt-8 bg-white shadow-lg rounded-lg w-3/4 mx-auto">
-        {todos.map((todo) => (
-          <li
-            key={todo.id}
-            className="flex items-center justify-between px-6 py-4 border-b border-gray-200 hover:bg-gray-100 transition-colors duration-200"
+          <input
+            type="text"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder="What needs to be done?"
+            value={newTodo}
+            onChange={(e) => setNewTodo(e.target.value)}
+          />
+          <button
+            type="submit"
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200"
           >
-            <span className="text-lg font-medium text-gray-800">
-              {todo.title}
-            </span>
+            Add
+          </button>
+        </form>
 
-            <button
-              className="text-red-500 hover:text-red-600 transition-colors duration-200"
-              onClick={() => deleteTodo(todo.id)}
+        <ul className="space-y-2">
+          {todos.map((todo) => (
+            <li
+              key={todo.id}
+              className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
             >
-              Delete
-            </button>
-          </li>
-        ))}
-      </ul>
+              <input
+                type="checkbox"
+                checked={todo.completed}
+                onChange={() => toggleTodo(todo.id, todo.completed)}
+                className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
+              />
+
+              {editingId === todo.id ? (
+                <div className="flex-1 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    className="flex-1 px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => saveEdit(todo.id)}
+                    className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <span className={`flex-1 text-lg ${todo.completed ? 'line-through text-gray-500' : 'text-gray-800'}`}>
+                  {todo.title}
+                </span>
+              )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => startEdit(todo)}
+                  className="text-blue-500 hover:text-blue-600 transition-colors duration-200"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => deleteTodo(todo.id)}
+                  className="text-red-500 hover:text-red-600 transition-colors duration-200"
+                >
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
     </main>
   );
 }
